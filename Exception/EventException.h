@@ -23,6 +23,21 @@ class InvalidAssignment : public std::exception
         std::string _message;
 };
 
+class InvalidFetching : public std::exception 
+{
+    public:
+        explicit InvalidFetching(const std::string& message) : _message(message) {}
+
+        const char* what() const noexcept override {
+            return _message.c_str();
+        }
+
+    private:
+        std::string _message;
+};
+
+
+
 class ObjectLock : public std::exception 
 {
     public:
@@ -35,6 +50,7 @@ class ObjectLock : public std::exception
     private:
         std::string _message;
 };
+
 
 
 
