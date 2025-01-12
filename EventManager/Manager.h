@@ -11,30 +11,31 @@
 #include <atomic>
 #include <queue>
 #include <chrono>
+#include <mutex>
 #include "../Exception/EventException.h"
 
 namespace Manager {
 
-    class EventSource;
+    class Producer;
 
     class Event 
     {
         public:
             Event ();
             ~Event();
-            void sourceSetter(std::weak_ptr<EventSource> a_sourceptr);
-            std::weak_ptr<EventSource> sourceGetter();
+            void sourceSetter(std::weak_ptr<Producer> a_sourceptr);
+            std::weak_ptr<Producer> sourceGetter();
             
 
         private:
-            std::weak_ptr<EventSource> m_source;
+            std::weak_ptr<Producer> m_source;
     };
 
-    class EventSource : std::enable_shared_from_this<EventSource>
+    class Producer : std::enable_shared_from_this<Producer>
     {
         public:
-            EventSource();
-            ~EventSource();
+            Producer();
+            ~Producer();
             void triggerEvent(Event &a_event , bool a_monitorCheckFlag,  bool a_thresholdCheckFlag , bool a_timerExpiredCheckFlag);
             void insertQueue(Event &a_event);
             void closeSource();
@@ -48,13 +49,14 @@ namespace Manager {
             std::atomic<bool> m_timerExpiredCheckSource{false};
             std::atomic<bool> m_isClosed{false};
             std::queue<Event> eventQueue;
+            std::mutex mtx;
     };
 
     template <typename T>
-    class MonitorChangeEventSource : public EventSource
+    class MonitorChangeProducer : public Producer
     {
         public:
-            MonitorChangeEventSource(T &a_variableValue)
+            MonitorChangeProducer(T &a_variableValue)
             {
                 std::thread([&](){
                     T l_lastValue = a_variableValue;
@@ -72,10 +74,10 @@ namespace Manager {
     };
 
     template <typename T>
-    class ThresholdExceededEventSource : public EventSource
+    class ThresholdExceededProducer : public Producer
     {
         public:
-            ThresholdExceededEventSource(T &a_baseVal , T a_lowerThreshold , T a_upperThreshold)
+            ThresholdExceededProducer(T &a_baseVal , T a_lowerThreshold , T a_upperThreshold)
             {
                 std::thread([&]()
                     {
@@ -93,17 +95,19 @@ namespace Manager {
             }
     };
 
-    class TimerExpiredEventSource : public EventSource
+    class TimerExpiredProducer : public Producer
     {
         public:
-            TimerExpiredEventSource(int a_timerValue);
+            TimerExpiredProducer(int a_timerValue);
     };
 
 
-    class CompositeEventSource : public EventSource
+    class CompositeProducer : public Producer
     {
         public:
-            CompositeEventSource();
+            CompositeProducer(std::vector<std::shared_ptr<Manager::Producer>> &a_compositeList);
     };
+
+    Event WaitForEvent(std::shared_ptr<Manager::Producer> a_ProducerPtr);
 
 }
